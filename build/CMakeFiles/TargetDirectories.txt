@@ -1,0 +1,3 @@
+/Users/oartemiy/code/BackendCpp/build/CMakeFiles/BackendCpp.dir
+/Users/oartemiy/code/BackendCpp/build/CMakeFiles/edit_cache.dir
+/Users/oartemiy/code/BackendCpp/build/CMakeFiles/rebuild_cache.dir
