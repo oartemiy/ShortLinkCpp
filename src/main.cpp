@@ -3,6 +3,7 @@
 #include "storage/LinkManager.h"
 #include "utils/json.hpp"
 #include <exception>
+#include <vector>
 
 using httplib::Request;
 using httplib::Response;
@@ -18,42 +19,64 @@ int main()
     srv.Post("/shorten",
              [](const Request& req, Response& res)
              {
-                 json request = json::parse(req.body);
-                 std::string shortLink;
-                 do
+                 try
                  {
-                     shortLink = gen_code();
+                     json request = json::parse(req.body);
+                     std::string original_url = request.at("url");
+                     std::string code = db.addUrl(original_url);
+                     json response;
+                     response["short_url"] = "http://localhost:8080/" + code;
+                     response["code"] = code;
+                     res.set_content(response.dump(), "application/json");
+                     res.status = 200;
                  }
-                 while(!db.isShortLinkAvailable(shortLink));
-                 db.addShortLink(request["url"], shortLink);
-                 json response;
-                 response["short_url"] = "http://localhost:8080/" + shortLink;
-                 response["code"] = shortLink;
-                 res.set_content(response.dump(), "application/json");
-                 res.status = 200;
+                 catch(const std::exception& err)
+                 {
+                     json error;
+                     error["error"] = "Invalid JSON";
+                     error["details"] = err.what();
+                     res.set_content(error.dump(), "application/json");
+                     res.status = 400;
+                 }
              });
+
+    srv.Get("/stats",
+            [](const Request& req, Response& res)
+            {
+                decltype(auto) allInfo = db.getAllInfo();
+                json response = json::array();
+                response.get_ptr<json::array_t*>()->reserve(allInfo.size());
+                for(const auto& [code, info]: allInfo)
+                {
+                    json current;
+                    current["code"] = code;
+                    current["original_url"] = info.original_url;
+                    current["created_at"] = info.created_at;
+                    current["clicks"] = info.clicks;
+                    response.push_back(current);
+                }
+                res.set_content(response.dump(), "application/json");
+            });
 
     srv.Get("/stats/:code",
             [](const Request& req, Response& res)
             {
-                std::string code = req.path_params.at("code");
                 try
                 {
-                    if(db.isShortLinkAvailable(code))
-                        throw LinkNotFoundException("No such link");
-                    decltype(auto) info = db.getLinkInfo(code);
+                    std::string code = req.path_params.at("code");
+                    decltype(auto) codeInfo = db.getCodeInfo(code);
                     json response;
-                    response["code"] = info.short_link;
-                    response["original_url"] = info.original_url;
-                    response["created_at"] = info.created_at;
-                    response["clicks"] = info.clicks;
+                    response["code"] = code;
+                    response["original_url"] = codeInfo.original_url;
+                    response["created_at"] = codeInfo.created_at;
+                    response["clicks"] = codeInfo.clicks;
                     res.set_content(response.dump(), "application/json");
                     res.status = 200;
                 }
-                catch(const std::exception& err)
+                catch(const CodeNotFoundException& err)
                 {
                     json error;
-                    error["Error"] = err.what();
+                    error["error"] = err.what();
                     res.set_content(error.dump(), "application/json");
                     res.status = 404;
                 }

@@ -1,4 +1,5 @@
 #include "LinkManager.h"
+#include "../gen_code/gen_code.h"
 #include <chrono>
 #include <ctime>
 #include <functional>
@@ -18,39 +19,45 @@ static std::string current_iso8601_time()
     return ss.str();
 }
 
-bool LinkManager::isShortLinkAvailable(const std::string& code) const
+bool LinkManager::isCodeAvailable(const std::string& code) noexcept
 {
-    std::lock_guard<std::mutex> lock(_storage_mutex);
+    std::lock_guard<std::mutex> lock(_storageMutex);
     return !_storage.contains(code);
 }
 
-void LinkManager::addShortLink(const std::string& link,
-                               const std::string& shortLink)
+std::string LinkManager::addUrl(const std::string& original_url) noexcept
 {
-    // guaranteed that shortLink is available
-    std::lock_guard<std::mutex> lock(_storage_mutex);
-    _storage.insert({shortLink, {shortLink, link, current_iso8601_time(), 0}});
+    std::string code;
+    do
+    {
+        code = gen_code();
+    }
+    while(!isCodeAvailable(code));
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    _storage.insert({code, {original_url, current_iso8601_time(), 0}});
+    return code;
 }
 
-const LinkInfo& LinkManager::getLinkInfo(const std::string& shortLink) const
+const LinkInfo&
+LinkManager::getCodeInfo(const std::string& code) noexcept(false)
 {
-    std::lock_guard<std::mutex> lock(_storage_mutex);
-    return _storage.at(shortLink);
+    if(isCodeAvailable(code))
+        throw CodeNotFoundException(code);
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    return _storage[code];
 }
 
-inline void LinkManager::redirect(const std::string& shortLink)
+inline void LinkManager::redirect(const std::string& code) noexcept(false)
 {
-    std::lock_guard<std::mutex> lock(_storage_mutex);
-    _storage[shortLink].clicks++;
+    if(isCodeAvailable(code))
+        throw CodeNotFoundException(code);
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    _storage[code].clicks++;
 }
 
-std::vector<std::reference_wrapper<const LinkInfo>>
-LinkManager::getAllLinks() const
+const std::unordered_map<std::string, LinkInfo>&
+LinkManager::getAllInfo() noexcept
 {
-    std::lock_guard<std::mutex> lock(_storage_mutex);
-    std::vector<std::reference_wrapper<const LinkInfo>> result;
-    result.reserve(_storage.size());
-    for(const auto& [shortLink, info]: _storage)
-        result.push_back(info);
-    return result;
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    return _storage;
 }

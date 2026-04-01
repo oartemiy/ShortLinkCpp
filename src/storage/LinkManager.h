@@ -23,18 +23,17 @@ public:
     }
 };
 
-class LinkNotFoundException: public StorageException
+class CodeNotFoundException: public StorageException
 {
 public:
-    explicit LinkNotFoundException(const std::string& shortLink)
-        : StorageException("Link with short link " + shortLink + "not found")
+    explicit CodeNotFoundException(const std::string& code)
+        : StorageException("Link with code: " + code + " not found")
     {
     }
 };
 
 struct LinkInfo
 {
-    std::string short_link;
     std::string original_url;
     std::string created_at;
     uint64_t clicks = 0;
@@ -45,18 +44,21 @@ class LinkManager
 private:
     // code -> LinkInfo
     std::unordered_map<std::string, LinkInfo> _storage;
-    inline static std::mutex _storage_mutex;  // to avoid init in cpp file
+    std::mutex _storageMutex;  // to avoid init in cpp file
+
+    bool isCodeAvailable(const std::string& code) noexcept;
 
 public:
-    bool isShortLinkAvailable(const std::string& code) const;
-    
-    void addShortLink(const std::string& link, const std::string& shortLink);
+    // returns code
+    std::string addUrl(const std::string& original_url) noexcept;
 
-    const LinkInfo& getLinkInfo(const std::string& shortLink) const;
+    // May throw CodeNotFoundException exception
+    const LinkInfo& getCodeInfo(const std::string& code) noexcept(false);
 
-    std::vector<std::reference_wrapper<const LinkInfo>> getAllLinks() const;
+    const std::unordered_map<std::string, LinkInfo>& getAllInfo() noexcept;
 
-    void redirect(const std::string& shortLink);
+    // May throw CodeNotFoundException exception
+    void redirect(const std::string& code) noexcept(false);
 };
 
 #endif
