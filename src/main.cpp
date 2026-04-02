@@ -1,8 +1,6 @@
-#include "gen_code/gen_code.h"
 #include "server/httplib.h"
 #include "storage/LinkManager.h"
 #include "utils/json.hpp"
-#include <atomic>
 #include <csignal>
 #include <exception>
 
@@ -17,7 +15,8 @@ httplib::Server* srv_ptr = nullptr;
 void signalHandler(int signal)
 {
     std::cout << "Stop server with code: " << signal << std::endl;
-    if (srv_ptr) srv_ptr->stop();
+    if(srv_ptr)
+        srv_ptr->stop();
 }
 
 int main()
@@ -27,7 +26,6 @@ int main()
     srv_ptr = &srv;
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
-
 
     db.readFromFile();
 
@@ -79,7 +77,7 @@ int main()
                 try
                 {
                     std::string code = req.path_params.at("code");
-                    decltype(auto) codeInfo = db.getCodeInfo(code);
+                    auto codeInfo = db.getCodeInfo(code);
                     json response;
                     response["code"] = code;
                     response["original_url"] = codeInfo.original_url;
