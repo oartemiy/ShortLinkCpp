@@ -2,6 +2,7 @@
 #include "server/httplib.h"
 #include "storage/LinkManager.h"
 #include "utils/json.hpp"
+#include <csignal>
 #include <exception>
 #include <vector>
 
@@ -12,9 +13,21 @@ using nlohmann::json;
 
 LinkManager db;
 
+void signalHandler(int signal)
+{
+    
+}
+
 int main()
 {
     httplib::Server srv;
+
+    std::signal(SIGINT, signalHandler);
+    std::signal(SIGTERM, signalHandler);
+
+    srv.new_task_queue = [] { return new httplib::ThreadPool(4); };
+
+    db.readFromFile();
 
     srv.Post("/shorten",
              [](const Request& req, Response& res)
@@ -84,5 +97,8 @@ int main()
 
     std::cout << "Server is running on localhost:8080" << std::endl;
     srv.listen("localhost", 8080);
+
+    db.saveToFile();
+
     return 0;
 }

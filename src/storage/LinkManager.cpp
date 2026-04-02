@@ -1,13 +1,18 @@
 #include "LinkManager.h"
 #include "../gen_code/gen_code.h"
+#include "../utils/json.hpp"
 #include <chrono>
 #include <ctime>
+#include <fstream>
 #include <functional>
 #include <iomanip>
+#include <iostream>
 #include <mutex>
 #include <sstream>
 #include <utility>
 #include <vector>
+
+using nlohmann::json;
 
 static std::string current_iso8601_time()
 {
@@ -60,4 +65,48 @@ LinkManager::getAllInfo() noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     return _storage;
+}
+
+void LinkManager::saveToFile() noexcept
+{
+    std::ofstream file("db.json");
+    if(!file.is_open())
+    {
+        std::cerr << "No db.json file. Stop saving" << std::endl;
+        return;
+    }
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    json currentSaveJSON;
+    decltype(auto) currentSave = getAllInfo();
+    currentSaveJSON.get_ptr<json::array_t*>()->reserve(currentSave.size());
+    for(const auto& [code, info]: currentSave)
+    {
+        json curJSON;
+        curJSON["code"] = code;
+        curJSON["original_url"] = info.original_url;
+        curJSON["created_at"] = info.created_at;
+        curJSON["clicks"] = info.clicks;
+        currentSaveJSON.push_back(curJSON);
+    }
+    file << currentSaveJSON.dump();
+    file.close();
+}
+
+void LinkManager::readFromFile() noexcept
+{
+    std::ifstream file("db.json");
+    if(!file.is_open())
+    {
+        std::cerr << "No db.json file. Stop reading" << std::endl;
+        return;
+    }
+    json currentSaveJSON;
+    file >> currentSaveJSON;
+    for(const auto& curJSON: currentSaveJSON)
+    {
+        _storage.insert({curJSON["code"],
+                         {curJSON["original_url"], curJSON["created_at"],
+                          curJSON["clicks"]}});
+    }
+    file.close();
 }

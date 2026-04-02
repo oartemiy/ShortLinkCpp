@@ -59,6 +59,12 @@ public:
 
     // May throw CodeNotFoundException exception
     void redirect(const std::string& code) noexcept(false);
+
+    // Saving data to file
+    void saveToFile() noexcept;
+
+    // Reading data from file
+    void readFromFile() noexcept;
 };
 
 #endif
