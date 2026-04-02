@@ -13,7 +13,6 @@ using nlohmann::json;
 
 LinkManager db;
 httplib::Server* srv_ptr = nullptr;
-// std::atomic<bool> stop_requested{false};
 
 void signalHandler(int signal)
 {
@@ -29,12 +28,6 @@ int main()
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // std::thread stopper([&srv] {
-    //     while (!stop_requested.load()) {
-    //         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    //     }
-    //     srv.stop();   // безопасно, т.к. вызывается не из обработчика сигнала
-    // });
 
     db.readFromFile();
 
@@ -107,7 +100,6 @@ int main()
     std::cout << "Server is running on localhost:8080" << std::endl;
     srv.listen("localhost", 8080);
 
-    // stopper.join();
     db.saveToFile();
     return 0;
 }
