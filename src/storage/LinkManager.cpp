@@ -44,7 +44,7 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
 }
 
 const LinkInfo
-LinkManager::getCodeInfo(const std::string& code) noexcept(false)
+LinkManager::getCodeInfo(const std::string& code)
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
@@ -52,7 +52,7 @@ LinkManager::getCodeInfo(const std::string& code) noexcept(false)
     return _storage[code];
 }
 
-inline void LinkManager::redirect(const std::string& code) noexcept(false)
+inline void LinkManager::redirect(const std::string& code)
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
