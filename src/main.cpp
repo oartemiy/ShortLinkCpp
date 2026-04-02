@@ -2,9 +2,9 @@
 #include "server/httplib.h"
 #include "storage/LinkManager.h"
 #include "utils/json.hpp"
+#include <atomic>
 #include <csignal>
 #include <exception>
-#include <vector>
 
 using httplib::Request;
 using httplib::Response;
@@ -12,20 +12,29 @@ using httplib::Response;
 using nlohmann::json;
 
 LinkManager db;
+httplib::Server* srv_ptr = nullptr;
+// std::atomic<bool> stop_requested{false};
 
 void signalHandler(int signal)
 {
-    
+    std::cout << "Stop server with code: " << signal << std::endl;
+    if (srv_ptr) srv_ptr->stop();
 }
 
 int main()
 {
     httplib::Server srv;
-
+    srv.new_task_queue = [] { return new httplib::ThreadPool(4); };
+    srv_ptr = &srv;
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    srv.new_task_queue = [] { return new httplib::ThreadPool(4); };
+    // std::thread stopper([&srv] {
+    //     while (!stop_requested.load()) {
+    //         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    //     }
+    //     srv.stop();   // безопасно, т.к. вызывается не из обработчика сигнала
+    // });
 
     db.readFromFile();
 
@@ -56,7 +65,7 @@ int main()
     srv.Get("/stats",
             [](const Request& req, Response& res)
             {
-                decltype(auto) allInfo = db.getAllInfo();
+                auto allInfo = db.getAllInfo();
                 json response = json::array();
                 response.get_ptr<json::array_t*>()->reserve(allInfo.size());
                 for(const auto& [code, info]: allInfo)
@@ -98,7 +107,7 @@ int main()
     std::cout << "Server is running on localhost:8080" << std::endl;
     srv.listen("localhost", 8080);
 
+    // stopper.join();
     db.saveToFile();
-
     return 0;
 }

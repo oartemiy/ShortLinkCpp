@@ -46,6 +46,7 @@ private:
     std::unordered_map<std::string, LinkInfo> _storage;
     std::mutex _storageMutex;  // to avoid init in cpp file
 
+    // required mutex lock_guard
     bool isCodeAvailable(const std::string& code) noexcept;
 
 public:
@@ -53,9 +54,9 @@ public:
     std::string addUrl(const std::string& original_url) noexcept;
 
     // May throw CodeNotFoundException exception
-    const LinkInfo& getCodeInfo(const std::string& code) noexcept(false);
+    const LinkInfo getCodeInfo(const std::string& code) noexcept(false);
 
-    const std::unordered_map<std::string, LinkInfo>& getAllInfo() noexcept;
+    const std::unordered_map<std::string, LinkInfo> getAllInfo() noexcept;
 
     // May throw CodeNotFoundException exception
     void redirect(const std::string& code) noexcept(false);

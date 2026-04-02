@@ -24,43 +24,43 @@ static std::string current_iso8601_time()
     return ss.str();
 }
 
-bool LinkManager::isCodeAvailable(const std::string& code) noexcept
+// required mutex lock_guard
+inline bool LinkManager::isCodeAvailable(const std::string& code) noexcept
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
     return !_storage.contains(code);
 }
 
 std::string LinkManager::addUrl(const std::string& original_url) noexcept
 {
+    std::lock_guard<std::mutex> lock(_storageMutex);
     std::string code;
     do
     {
         code = gen_code();
     }
     while(!isCodeAvailable(code));
-    std::lock_guard<std::mutex> lock(_storageMutex);
     _storage.insert({code, {original_url, current_iso8601_time(), 0}});
     return code;
 }
 
-const LinkInfo&
+const LinkInfo
 LinkManager::getCodeInfo(const std::string& code) noexcept(false)
 {
+    std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
-    std::lock_guard<std::mutex> lock(_storageMutex);
     return _storage[code];
 }
 
 inline void LinkManager::redirect(const std::string& code) noexcept(false)
 {
+    std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
-    std::lock_guard<std::mutex> lock(_storageMutex);
     _storage[code].clicks++;
 }
 
-const std::unordered_map<std::string, LinkInfo>&
+const std::unordered_map<std::string, LinkInfo>
 LinkManager::getAllInfo() noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
@@ -69,17 +69,16 @@ LinkManager::getAllInfo() noexcept
 
 void LinkManager::saveToFile() noexcept
 {
+    std::lock_guard<std::mutex> lock(_storageMutex);
     std::ofstream file("db.json");
     if(!file.is_open())
     {
         std::cerr << "No db.json file. Stop saving" << std::endl;
         return;
     }
-    std::lock_guard<std::mutex> lock(_storageMutex);
-    json currentSaveJSON;
-    decltype(auto) currentSave = getAllInfo();
-    currentSaveJSON.get_ptr<json::array_t*>()->reserve(currentSave.size());
-    for(const auto& [code, info]: currentSave)
+    json currentSaveJSON = json::array();
+    currentSaveJSON.get_ptr<json::array_t*>()->reserve(_storage.size());
+    for(const auto& [code, info]: _storage)
     {
         json curJSON;
         curJSON["code"] = code;
@@ -87,13 +86,16 @@ void LinkManager::saveToFile() noexcept
         curJSON["created_at"] = info.created_at;
         curJSON["clicks"] = info.clicks;
         currentSaveJSON.push_back(curJSON);
+        // std::cout << curJSON.dump(4) << std::endl;
     }
-    file << currentSaveJSON.dump();
+    file << currentSaveJSON.dump(4);
     file.close();
+    std::cout << "Saved LinkManager to db.json" << std::endl;
 }
 
 void LinkManager::readFromFile() noexcept
 {
+    std::lock_guard<std::mutex> lock(_storageMutex);
     std::ifstream file("db.json");
     if(!file.is_open())
     {
@@ -109,4 +111,5 @@ void LinkManager::readFromFile() noexcept
                           curJSON["clicks"]}});
     }
     file.close();
+    std::cout << "Readed db.json data to LinkManager" << std::endl;
 }
