@@ -5,7 +5,11 @@ add_compile_options(-pthread)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(BackendCpp src/main.cpp src/gen_code/gen_code.cpp src/storage/LinkManager.cpp)
+add_executable(BackendCpp
+src/main.cpp
+src/gen_code/gen_code.cpp
+src/storage/LinkManager.cpp
+src/handlers/handlers.cpp)
 
 
 # target_precompile_headers(BackendCpp PUBLIC httplib.h json.hpp)

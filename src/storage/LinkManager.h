@@ -59,7 +59,7 @@ public:
     const std::unordered_map<std::string, LinkInfo> getAllInfo() noexcept;
 
     // May throw CodeNotFoundException exception
-    void redirect(const std::string& code);
+    std::string redirect(const std::string& code);
 
     // Saving data to file
     void saveToFile() noexcept;

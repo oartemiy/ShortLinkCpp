@@ -4,13 +4,11 @@
 #include <chrono>
 #include <ctime>
 #include <fstream>
-#include <functional>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
 #include <utility>
-#include <vector>
 
 using nlohmann::json;
 
@@ -43,8 +41,7 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
     return code;
 }
 
-const LinkInfo
-LinkManager::getCodeInfo(const std::string& code)
+const LinkInfo LinkManager::getCodeInfo(const std::string& code)
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
@@ -52,12 +49,13 @@ LinkManager::getCodeInfo(const std::string& code)
     return _storage[code];
 }
 
-inline void LinkManager::redirect(const std::string& code)
+std::string LinkManager::redirect(const std::string& code)
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
     _storage[code].clicks++;
+    return _storage[code].original_url;
 }
 
 const std::unordered_map<std::string, LinkInfo>
