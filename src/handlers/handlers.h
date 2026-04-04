@@ -11,6 +11,14 @@ using nlohmann::json;
 extern LinkManager db;
 extern httplib::Server* srv_ptr;
 
+// class UrlError: public std::runtime_error
+// {
+//     explicit UrlError(const std::string& err)
+//         : std::runtime_error("Url: " + err + " is invalid!")
+//     {
+//     }
+// };
+
 void postOriginalLinkHandler(const Request& req, Response& res);
 
 void getAllStatisticHandler(const Request& req, Response& res);

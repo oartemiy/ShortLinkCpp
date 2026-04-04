@@ -1,6 +1,7 @@
 #ifndef LINK_MANAGER_H_
 #define LINK_MANAGER_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <exception>
 #include <functional>
@@ -50,13 +51,21 @@ private:
     bool isCodeAvailable(const std::string& code) noexcept;
 
 public:
+    /*
+     * NOTE: removed the const value from the return type, which kills the move
+     * semantics
+     */
+
     // returns code
     std::string addUrl(const std::string& original_url) noexcept;
 
     // May throw CodeNotFoundException exception
-    const LinkInfo getCodeInfo(const std::string& code);
+    LinkInfo getCodeInfo(const std::string& code);
 
-    const std::unordered_map<std::string, LinkInfo> getAllInfo() noexcept;
+    std::unordered_map<std::string, LinkInfo> getAllInfo() noexcept;
+
+    std::unordered_map<std::string, LinkInfo>
+    getLimitInfo(std::size_t limit) noexcept;
 
     // May throw CodeNotFoundException exception
     std::string redirect(const std::string& code);

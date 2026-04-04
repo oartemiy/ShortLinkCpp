@@ -2,12 +2,15 @@
 #include "../gen_code/gen_code.h"
 #include "../utils/json.hpp"
 #include <chrono>
+#include <cstddef>
 #include <ctime>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <mutex>
 #include <sstream>
+#include <string>
+#include <unordered_map>
 #include <utility>
 
 using nlohmann::json;
@@ -41,7 +44,7 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
     return code;
 }
 
-const LinkInfo LinkManager::getCodeInfo(const std::string& code)
+LinkInfo LinkManager::getCodeInfo(const std::string& code)
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
@@ -58,11 +61,25 @@ std::string LinkManager::redirect(const std::string& code)
     return _storage[code].original_url;
 }
 
-const std::unordered_map<std::string, LinkInfo>
-LinkManager::getAllInfo() noexcept
+std::unordered_map<std::string, LinkInfo> LinkManager::getAllInfo() noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     return _storage;
+}
+
+std::unordered_map<std::string, LinkInfo>
+LinkManager::getLimitInfo(std::size_t limit) noexcept
+{
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::unordered_map<std::string, LinkInfo> result;
+    result.reserve(std::min(limit, _storage.size()));
+    auto it = _storage.cbegin();
+    while(result.size() < limit && it != _storage.cend())
+    {
+        result.insert({it->first, it->second});
+        ++it;
+    }
+    return result;
 }
 
 void LinkManager::saveToFile() noexcept

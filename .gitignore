@@ -1,3 +1,5 @@
 build/
 .cache/
 db.json
+task.md
+.DS_Store

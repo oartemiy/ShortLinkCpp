@@ -17,6 +17,7 @@ int main()
     httplib::Server srv;
     srv.new_task_queue = [] { return new httplib::ThreadPool(4); };
     srv_ptr = &srv;
+
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
