@@ -15,20 +15,21 @@
 
 using nlohmann::json;
 
-static std::string current_iso8601_time()
+inline std::chrono::system_clock::time_point current_time()
 {
-    auto now = std::chrono::system_clock::now();
-    auto time = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::gmtime(&time);
-    std::stringstream ss;
-    ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
-    return ss.str();
+    return std::chrono::system_clock::now();
 }
 
 // required mutex lock_guard
 inline bool LinkManager::isCodeAvailable(const std::string& code) noexcept
 {
     return !_storage.contains(code);
+}
+
+inline bool LinkManager::isCodeExpired(const std::string& code) noexcept
+{
+    auto curTime = current_time();
+    return _storage[code].expires_at <= curTime;
 }
 
 std::string LinkManager::addUrl(const std::string& original_url) noexcept
@@ -40,7 +41,9 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
         code = gen_code();
     }
     while(!isCodeAvailable(code));
-    _storage.insert({code, {original_url, current_iso8601_time(), 0}});
+    auto createdAt = current_time();
+    auto expiresAt = createdAt + std::chrono::minutes(2);
+    _storage.insert({code, {original_url, createdAt, expiresAt, 0ull}});
     return code;
 }
 
@@ -49,6 +52,8 @@ LinkInfo LinkManager::getCodeInfo(const std::string& code)
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
+    if(isCodeExpired(code))
+        throw CodeTLLError(code);
     return _storage[code];
 }
 
@@ -57,6 +62,8 @@ std::string LinkManager::redirect(const std::string& code)
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
+    if(isCodeExpired(code))
+        throw CodeTLLError(code);
     _storage[code].clicks++;
     return _storage[code].original_url;
 }
@@ -64,6 +71,12 @@ std::string LinkManager::redirect(const std::string& code)
 std::unordered_map<std::string, LinkInfo> LinkManager::getAllInfo() noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
+    // std::unordered_map<std::string, LinkInfo> storageCopy;
+    // auto curTime = current_time();
+    // for(const auto& [code, info]: _storage)
+    //     if(info.expires_at > curTime)
+    //         storageCopy.insert({code, info});
+    // return storageCopy;
     return _storage;
 }
 
@@ -74,9 +87,11 @@ LinkManager::getLimitInfo(std::size_t limit) noexcept
     std::unordered_map<std::string, LinkInfo> result;
     result.reserve(std::min(limit, _storage.size()));
     auto it = _storage.cbegin();
+    auto curTime = current_time();
     while(result.size() < limit && it != _storage.cend())
     {
-        result.insert({it->first, it->second});
+        if(it->second.expires_at > curTime)
+            result.insert({it->first, it->second});
         ++it;
     }
     return result;
@@ -98,7 +113,10 @@ void LinkManager::saveToFile() noexcept
         json curJSON;
         curJSON["code"] = code;
         curJSON["original_url"] = info.original_url;
-        curJSON["created_at"] = info.created_at;
+        curJSON["created_at"] =
+            std::chrono::system_clock::to_time_t(info.created_at);
+        curJSON["expires_at"] =
+            std::chrono::system_clock::to_time_t(info.expires_at);
         curJSON["clicks"] = info.clicks;
         currentSaveJSON.push_back(curJSON);
         // std::cout << curJSON.dump(4) << std::endl;
@@ -121,10 +139,25 @@ void LinkManager::readFromFile() noexcept
     file >> currentSaveJSON;
     for(const auto& curJSON: currentSaveJSON)
     {
-        _storage.insert({curJSON["code"],
-                         {curJSON["original_url"], curJSON["created_at"],
-                          curJSON["clicks"]}});
+        _storage.insert(
+            {curJSON["code"],
+             {curJSON["original_url"],
+              std::chrono::system_clock::from_time_t(curJSON["created_at"]),
+              std::chrono::system_clock::from_time_t(curJSON["expires_at"]),
+              curJSON["clicks"]}});
     }
     file.close();
-    std::cout << "Readed db.json data to LinkManager" << std::endl;
+    std::cout << "Read db.json data to LinkManager" << std::endl;
+}
+
+void LinkManager::cleanExpiredLinks() noexcept
+{
+    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::unordered_map<std::string, LinkInfo> newStorage;
+    auto curTime = current_time();
+    for(auto& [code, info]: _storage)
+        if(info.expires_at > curTime)
+            // TODO: testing cosnt std::string&&
+            newStorage.insert({std::move(code), std::move(info)});
+    _storage = std::move(newStorage);
 }

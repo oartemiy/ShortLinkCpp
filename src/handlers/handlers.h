@@ -3,6 +3,7 @@
 #include "../server/httplib.h"
 #include "../storage/LinkManager.h"
 #include "../utils/json.hpp"
+#include <thread>
 
 using httplib::Request;
 using httplib::Response;
@@ -10,6 +11,8 @@ using nlohmann::json;
 
 extern LinkManager db;
 extern httplib::Server* srv_ptr;
+// extern std::thread* cleanupThread_ptr;
+extern std::atomic<bool> stopClean;
 
 // class UrlError: public std::runtime_error
 // {

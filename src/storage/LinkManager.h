@@ -1,6 +1,7 @@
 #ifndef LINK_MANAGER_H_
 #define LINK_MANAGER_H_
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
@@ -10,8 +11,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-static std::string current_iso8601_time();
 
 // Errors
 
@@ -33,10 +32,18 @@ public:
     }
 };
 
+class CodeTLLError: public StorageException
+{
+public:
+    explicit CodeTLLError(const std::string& code)
+        : StorageException("Code: " + code + " has expired its time") {};
+};
+
 struct LinkInfo
 {
     std::string original_url;
-    std::string created_at;
+    std::chrono::system_clock::time_point created_at;
+    std::chrono::system_clock::time_point expires_at;
     uint64_t clicks = 0;
 };
 
@@ -47,8 +54,11 @@ private:
     std::unordered_map<std::string, LinkInfo> _storage;
     std::mutex _storageMutex;  // to avoid init in cpp file
 
-    // required mutex lock_guard
+    // requires mutex lock_guard
     bool isCodeAvailable(const std::string& code) noexcept;
+
+    // requires mutex lock_guard and isCodeAvailable == true
+    bool isCodeExpired(const std::string& code) noexcept;
 
 public:
     /*
@@ -75,6 +85,9 @@ public:
 
     // Reading data from file
     void readFromFile() noexcept;
+
+    // clean expired links
+    void cleanExpiredLinks() noexcept;
 };
 
 #endif

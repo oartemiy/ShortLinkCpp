@@ -2,7 +2,11 @@
 #include "server/httplib.h"
 #include "storage/LinkManager.h"
 #include "utils/json.hpp"
+#include <atomic>
+#include <chrono>
 #include <csignal>
+#include <functional>
+#include <thread>
 
 using httplib::Request;
 using httplib::Response;
@@ -11,7 +15,18 @@ using nlohmann::json;
 
 LinkManager db;
 httplib::Server* srv_ptr = nullptr;
+std::thread* cleanupThread_ptr = nullptr;
+std::atomic<bool> stopClean{false};
 
+void cleanupLinks(LinkManager& dbRef)
+{
+    while(!stopClean.load())
+    {
+        std::this_thread::sleep_for(std::chrono::minutes(1));
+        if(!stopClean.load())
+            db.cleanExpiredLinks();
+    }
+}
 int main()
 {
     httplib::Server srv;
@@ -20,6 +35,10 @@ int main()
 
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
+
+    // TODO: test feature
+    std::thread cleanupThread(cleanupLinks, std::ref(db));
+    cleanupThread_ptr = &cleanupThread;
 
     db.readFromFile();
 
@@ -34,6 +53,11 @@ int main()
     std::cout << "Server is running on localhost:8080" << std::endl;
     srv.listen("localhost", 8080);
 
+    stopClean.store(true);
+    // signal handler can join thread
+    if(cleanupThread.joinable())
+        cleanupThread.join();
     db.saveToFile();
+
     return 0;
 }

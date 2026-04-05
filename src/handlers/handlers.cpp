@@ -1,8 +1,12 @@
 #include "handlers.h"
 #include "../server/httplib.h"
 #include "../utils/json.hpp"
+#include <chrono>
 #include <cstddef>
+#include <ctime>
 #include <exception>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
@@ -10,6 +14,15 @@ using httplib::Request;
 using httplib::Response;
 
 using nlohmann::json;
+
+static std::string to_string(std::chrono::system_clock::time_point chrono_time)
+{
+    auto time = std::chrono::system_clock::to_time_t(chrono_time);
+    std::tm tm = *std::gmtime(&time);
+    std::stringstream ss;
+    ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+    return ss.str();
+}
 
 void postOriginalLinkHandler(const Request& req, Response& res)
 {
@@ -73,7 +86,8 @@ void getAllStatisticHandler(const Request& req, Response& res)
         json current;
         current["code"] = code;
         current["original_url"] = info.original_url;
-        current["created_at"] = info.created_at;
+        current["created_at"] = to_string(info.created_at);
+        current["expires_at"] = to_string(info.expires_at);
         current["clicks"] = info.clicks;
         response.push_back(current);
     }
@@ -89,12 +103,13 @@ void getCodeStatisticsHandler(const Request& req, Response& res)
         json response;
         response["code"] = code;
         response["original_url"] = codeInfo.original_url;
-        response["created_at"] = codeInfo.created_at;
+        response["created_at"] = to_string(codeInfo.created_at);
+        response["expires_at"] = to_string(codeInfo.expires_at);
         response["clicks"] = codeInfo.clicks;
         res.set_content(response.dump(), "application/json");
         res.status = 200;
     }
-    catch(const CodeNotFoundException& err)
+    catch(const StorageException& err)
     {
         json error;
         error["error"] = err.what();
@@ -111,7 +126,7 @@ void redirectHandler(const Request& req, Response& res)
         std::string direction = db.redirect(code);
         res.set_redirect(direction, httplib::StatusCode::SeeOther_303);
     }
-    catch(const CodeNotFoundException& err)
+    catch(const StorageException& err)
     {
         json error;
         error["error"] = err.what();
@@ -123,6 +138,10 @@ void redirectHandler(const Request& req, Response& res)
 void signalHandler(int signal)
 {
     std::cout << "Stop server with code: " << signal << std::endl;
+    std::cout << "Wait for 1 minute while cleaning up db..." << std::endl;
+    stopClean.store(true);
+    // if(cleanupThread_ptr)
+    //     cleanupThread_ptr->join();
     if(srv_ptr)
         srv_ptr->stop();
 }
