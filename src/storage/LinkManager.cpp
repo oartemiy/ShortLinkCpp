@@ -5,10 +5,8 @@
 #include <cstddef>
 #include <ctime>
 #include <fstream>
-#include <iomanip>
 #include <iostream>
 #include <mutex>
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -71,13 +69,13 @@ std::string LinkManager::redirect(const std::string& code)
 std::unordered_map<std::string, LinkInfo> LinkManager::getAllInfo() noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
-    // std::unordered_map<std::string, LinkInfo> storageCopy;
-    // auto curTime = current_time();
-    // for(const auto& [code, info]: _storage)
-    //     if(info.expires_at > curTime)
-    //         storageCopy.insert({code, info});
-    // return storageCopy;
-    return _storage;
+    std::unordered_map<std::string, LinkInfo> storageCopy;
+    auto curTime = current_time();
+    for(const auto& [code, info]: _storage)
+        if(info.expires_at > curTime)
+            storageCopy.insert({code, info});
+    return storageCopy;
+    // return _storage;
 }
 
 std::unordered_map<std::string, LinkInfo>
@@ -157,7 +155,6 @@ void LinkManager::cleanExpiredLinks() noexcept
     auto curTime = current_time();
     for(auto& [code, info]: _storage)
         if(info.expires_at > curTime)
-            // TODO: testing cosnt std::string&&
-            newStorage.insert({std::move(code), std::move(info)});
+            newStorage.insert({code, std::move(info)});
     _storage = std::move(newStorage);
 }

@@ -4,13 +4,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <exception>
-#include <functional>
 #include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 // Errors
 

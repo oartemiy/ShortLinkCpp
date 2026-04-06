@@ -36,7 +36,7 @@ int main()
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // TODO: test feature
+    // NOTE: tested all is working
     std::thread cleanupThread(cleanupLinks, std::ref(db));
     cleanupThread_ptr = &cleanupThread;
 
