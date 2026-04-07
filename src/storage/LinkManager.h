@@ -69,10 +69,8 @@ public:
     // May throw CodeNotFoundException exception
     LinkInfo getCodeInfo(const std::string& code);
 
-    std::unordered_map<std::string, LinkInfo> getAllInfo() noexcept;
-
     std::unordered_map<std::string, LinkInfo>
-    getLimitInfo(std::size_t limit) noexcept;
+    getInfo(std::size_t limit, std::size_t offset) noexcept;
 
     // May throw CodeNotFoundException exception
     std::string redirect(const std::string& code);

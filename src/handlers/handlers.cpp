@@ -6,6 +6,7 @@
 #include <ctime>
 #include <exception>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -58,27 +59,28 @@ void postOriginalLinkHandler(const Request& req, Response& res)
 void getAllStatisticHandler(const Request& req, Response& res)
 {
     std::unordered_map<std::string, LinkInfo> allInfo;
-    if(req.has_param("limit"))
+
+    try
     {
+        // TODO: remove KOLHOZ!!!
         // size_t ~ ull
-        try
-        {
-            std::size_t limit = std::stoull(req.get_param_value("limit"));
-            allInfo = db.getLimitInfo(limit);
-        }
-        catch(const std::exception& err)
-        {
-            json error;
-            error["error"] = err.what();
-            res.set_content(error.dump(), "application/json");
-            res.status = 400;
-            return;
-        }
+        std::size_t limit = req.get_param_value("limit") == ""
+                                ? std::numeric_limits<std::size_t>::max()
+                                : std::stoull(req.get_param_value("limit"));
+        std::size_t offset = req.get_param_value("offset") == ""
+                                 ? 0ull
+                                 : std::stoull(req.get_param_value("offset"));
+        allInfo = db.getInfo(limit, offset);
     }
-    else
+    catch(const std::exception& err)
     {
-        allInfo = db.getAllInfo();
+        json error;
+        error["error"] = err.what();
+        res.set_content(error.dump(), "application/json");
+        res.status = 400;
+        return;
     }
+
     json response = json::array();
     response.get_ptr<json::array_t*>()->reserve(allInfo.size());
     for(const auto& [code, info]: allInfo)

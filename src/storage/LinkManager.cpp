@@ -66,20 +66,21 @@ std::string LinkManager::redirect(const std::string& code)
     return _storage[code].original_url;
 }
 
-std::unordered_map<std::string, LinkInfo> LinkManager::getAllInfo() noexcept
-{
-    std::lock_guard<std::mutex> lock(_storageMutex);
-    std::unordered_map<std::string, LinkInfo> storageCopy;
-    auto curTime = current_time();
-    for(const auto& [code, info]: _storage)
-        if(info.expires_at > curTime)
-            storageCopy.insert({code, info});
-    return storageCopy;
-    // return _storage;
-}
+// std::unordered_map<std::string, LinkInfo> LinkManager::getAllInfo() noexcept
+// {
+//     std::lock_guard<std::mutex> lock(_storageMutex);
+//     std::unordered_map<std::string, LinkInfo> storageCopy;
+//     auto curTime = current_time();
+//     for(const auto& [code, info]: _storage)
+//         if(info.expires_at > curTime)
+//             storageCopy.insert({code, info});
+//     return storageCopy;
+//     // return _storage;
+// }
 
+// offset = 0
 std::unordered_map<std::string, LinkInfo>
-LinkManager::getLimitInfo(std::size_t limit) noexcept
+LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     std::unordered_map<std::string, LinkInfo> result;
@@ -88,9 +89,12 @@ LinkManager::getLimitInfo(std::size_t limit) noexcept
     auto curTime = current_time();
     while(result.size() < limit && it != _storage.cend())
     {
-        if(it->second.expires_at > curTime)
+        if(offset == 0 && it->second.expires_at > curTime)
             result.insert({it->first, it->second});
         ++it;
+
+        if(offset != 0)
+            --offset;
     }
     return result;
 }
