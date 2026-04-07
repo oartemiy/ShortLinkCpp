@@ -17,15 +17,6 @@ using httplib::Response;
 
 using nlohmann::json;
 
-static std::string to_string(std::chrono::system_clock::time_point chrono_time)
-{
-    auto time = std::chrono::system_clock::to_time_t(chrono_time);
-    std::tm tm = *std::gmtime(&time);
-    std::stringstream ss;
-    ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
-    return ss.str();
-}
-
 void postOriginalLinkHandler(const Request& req, Response& res)
 {
     try
@@ -57,21 +48,24 @@ void postOriginalLinkHandler(const Request& req, Response& res)
     }
 }
 
+// TODO: implement json
 void getAllStatisticHandler(const Request& req, Response& res)
 {
-    std::vector<std::pair<std::string, LinkInfo>> allInfo;
+    json response;
 
     try
     {
-        // TODO: remove KOLHOZ!!!
         // size_t ~ ull
+        // TODO: remove KOLHOZ!!!
         std::size_t limit = req.get_param_value("limit") == ""
                                 ? std::numeric_limits<std::size_t>::max()
                                 : std::stoull(req.get_param_value("limit"));
         std::size_t offset = req.get_param_value("offset") == ""
                                  ? 0ull
                                  : std::stoull(req.get_param_value("offset"));
-        allInfo = db.getInfo(limit, offset);
+        response = std::move(db.getInfo(limit, offset));
+        res.set_content(response.dump(), "application/json");
+        res.status = 200;
     }
     catch(const std::exception& err)
     {
@@ -79,36 +73,16 @@ void getAllStatisticHandler(const Request& req, Response& res)
         error["error"] = err.what();
         res.set_content(error.dump(), "application/json");
         res.status = 400;
-        return;
     }
-
-    json response = json::array();
-    response.get_ptr<json::array_t*>()->reserve(allInfo.size());
-    for(const auto& [code, info]: allInfo)
-    {
-        json current;
-        current["code"] = code;
-        current["original_url"] = info.original_url;
-        current["created_at"] = to_string(info.created_at);
-        current["expires_at"] = to_string(info.expires_at);
-        current["clicks"] = info.clicks;
-        response.push_back(current);
-    }
-    res.set_content(response.dump(), "application/json");
 }
 
+// TODO: impl json
 void getCodeStatisticsHandler(const Request& req, Response& res)
 {
     try
     {
         std::string code = req.path_params.at("code");
-        auto codeInfo = db.getCodeInfo(code);
-        json response;
-        response["code"] = code;
-        response["original_url"] = codeInfo.original_url;
-        response["created_at"] = to_string(codeInfo.created_at);
-        response["expires_at"] = to_string(codeInfo.expires_at);
-        response["clicks"] = codeInfo.clicks;
+        json response = db.getCodeInfo(code);
         res.set_content(response.dump(), "application/json");
         res.status = 200;
     }

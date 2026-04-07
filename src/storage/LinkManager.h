@@ -1,6 +1,7 @@
 #ifndef LINK_MANAGER_H_
 #define LINK_MANAGER_H_
 
+#include "../utils/json.hpp"
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -9,6 +10,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+using nlohmann::json;
 
 // Errors
 
@@ -37,27 +40,8 @@ public:
         : StorageException("Code: " + code + " has expired its time") {};
 };
 
-struct LinkInfo
-{
-    std::string original_url;
-    std::chrono::system_clock::time_point created_at;
-    std::chrono::system_clock::time_point expires_at;
-    uint64_t clicks = 0;
-};
-
 class LinkManager
 {
-private:
-    // code -> LinkInfo
-    std::unordered_map<std::string, LinkInfo> _storage;
-    std::mutex _storageMutex;  // to avoid init in cpp file
-
-    // requires mutex lock_guard
-    bool isCodeAvailable(const std::string& code) noexcept;
-
-    // requires mutex lock_guard and isCodeAvailable == true
-    bool isCodeExpired(const std::string& code) noexcept;
-
 public:
     /*
      * NOTE: removed the const value from the return type, which kills the move
@@ -71,11 +55,10 @@ public:
     std::string addUrl(const std::string& original_url) noexcept;
 
     // May throw CodeNotFoundException exception
-    LinkInfo getCodeInfo(const std::string& code);
+    json getCodeInfo(const std::string& code);
 
-    // HACK: using std::vector to save order between NON-POST requests
-    std::vector<std::pair<std::string, LinkInfo>>
-    getInfo(std::size_t limit, std::size_t offset) noexcept;
+    // HACK: using (json)std::vector to save order between NON-POST requests
+    json getInfo(std::size_t limit, std::size_t offset) noexcept;
 
     // May throw CodeNotFoundException exception
     std::string redirect(const std::string& code);
@@ -88,6 +71,25 @@ public:
 
     // clean expired links
     void cleanExpiredLinks() noexcept;
+
+private:
+    struct LinkInfo
+    {
+        std::string original_url;
+        std::chrono::system_clock::time_point created_at;
+        std::chrono::system_clock::time_point expires_at;
+        uint64_t clicks = 0;
+    };
+
+    // code -> LinkInfo
+    std::unordered_map<std::string, LinkInfo> _storage;
+    std::mutex _storageMutex;  // to avoid init in cpp file
+
+    // requires mutex lock_guard
+    bool isCodeAvailable(const std::string& code) noexcept;
+
+    // requires mutex lock_guard and isCodeAvailable == true
+    bool isCodeExpired(const std::string& code) noexcept;
 };
 
 #endif

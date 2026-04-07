@@ -10,9 +10,17 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-#include <vector>
 
 using nlohmann::json;
+
+static std::string to_string(std::chrono::system_clock::time_point chrono_time)
+{
+    auto time = std::chrono::system_clock::to_time_t(chrono_time);
+    std::tm tm = *std::gmtime(&time);
+    std::stringstream ss;
+    ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+    return ss.str();
+}
 
 inline std::chrono::system_clock::time_point current_time()
 {
@@ -46,14 +54,21 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
     return code;
 }
 
-LinkInfo LinkManager::getCodeInfo(const std::string& code)
+json LinkManager::getCodeInfo(const std::string& code)
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
     if(isCodeExpired(code))
         throw CodeTLLError(code);
-    return _storage[code];
+    const LinkInfo& codeInfo = _storage[code];
+    json response;
+    response["code"] = code;
+    response["original_url"] = codeInfo.original_url;
+    response["created_at"] = to_string(codeInfo.created_at);
+    response["expires_at"] = to_string(codeInfo.expires_at);
+    response["clicks"] = codeInfo.clicks;
+    return response;
 }
 
 std::string LinkManager::redirect(const std::string& code)
@@ -79,18 +94,25 @@ std::string LinkManager::redirect(const std::string& code)
 //     // return _storage;
 // }
 
-std::vector<std::pair<std::string, LinkInfo>>
-LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
+json LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
-    std::vector<std::pair<std::string, LinkInfo>> result;
-    result.reserve(std::min(limit, _storage.size()));
+    json result = json::array();
+    result.get_ptr<json::array_t*>()->reserve(std::min(limit, _storage.size()));
     auto it = _storage.cbegin();
     auto curTime = current_time();
     while(result.size() < limit && it != _storage.cend())
     {
         if(offset == 0 && it->second.expires_at > curTime)
-            result.push_back({it->first, it->second});
+        {
+            json curJSON;
+            curJSON["code"] = it->first;
+            curJSON["original_url"] = it->second.original_url;
+            curJSON["created_at"] = to_string(it->second.created_at);
+            curJSON["expires_at"] = to_string(it->second.expires_at);
+            curJSON["clicks"] = it->second.clicks;
+            result.push_back(std::move(curJSON));
+        }
         ++it;
 
         if(offset != 0)
