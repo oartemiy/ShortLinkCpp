@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 // Errors
 
@@ -61,6 +62,9 @@ public:
     /*
      * NOTE: removed the const value from the return type, which kills the move
      * semantics
+     *
+     * TODO: implement json returning, which will elide copping from stl
+     * containers
      */
 
     // returns code
@@ -69,7 +73,8 @@ public:
     // May throw CodeNotFoundException exception
     LinkInfo getCodeInfo(const std::string& code);
 
-    std::unordered_map<std::string, LinkInfo>
+    // HACK: using std::vector to save order between NON-POST requests
+    std::vector<std::pair<std::string, LinkInfo>>
     getInfo(std::size_t limit, std::size_t offset) noexcept;
 
     // May throw CodeNotFoundException exception

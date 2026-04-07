@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 using httplib::Request;
 using httplib::Response;
@@ -58,7 +59,7 @@ void postOriginalLinkHandler(const Request& req, Response& res)
 
 void getAllStatisticHandler(const Request& req, Response& res)
 {
-    std::unordered_map<std::string, LinkInfo> allInfo;
+    std::vector<std::pair<std::string, LinkInfo>> allInfo;
 
     try
     {

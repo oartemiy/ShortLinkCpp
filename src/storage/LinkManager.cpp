@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 using nlohmann::json;
 
@@ -78,19 +79,18 @@ std::string LinkManager::redirect(const std::string& code)
 //     // return _storage;
 // }
 
-// offset = 0
-std::unordered_map<std::string, LinkInfo>
+std::vector<std::pair<std::string, LinkInfo>>
 LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
-    std::unordered_map<std::string, LinkInfo> result;
+    std::vector<std::pair<std::string, LinkInfo>> result;
     result.reserve(std::min(limit, _storage.size()));
     auto it = _storage.cbegin();
     auto curTime = current_time();
     while(result.size() < limit && it != _storage.cend())
     {
         if(offset == 0 && it->second.expires_at > curTime)
-            result.insert({it->first, it->second});
+            result.push_back({it->first, it->second});
         ++it;
 
         if(offset != 0)

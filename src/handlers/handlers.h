@@ -3,7 +3,6 @@
 #include "../server/httplib.h"
 #include "../storage/LinkManager.h"
 #include "../utils/json.hpp"
-#include <thread>
 
 using httplib::Request;
 using httplib::Response;
