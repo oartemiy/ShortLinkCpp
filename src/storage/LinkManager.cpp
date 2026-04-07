@@ -82,18 +82,6 @@ std::string LinkManager::redirect(const std::string& code)
     return _storage[code].original_url;
 }
 
-// std::unordered_map<std::string, LinkInfo> LinkManager::getAllInfo() noexcept
-// {
-//     std::lock_guard<std::mutex> lock(_storageMutex);
-//     std::unordered_map<std::string, LinkInfo> storageCopy;
-//     auto curTime = current_time();
-//     for(const auto& [code, info]: _storage)
-//         if(info.expires_at > curTime)
-//             storageCopy.insert({code, info});
-//     return storageCopy;
-//     // return _storage;
-// }
-
 json LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
