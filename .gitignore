@@ -3,3 +3,4 @@ build/
 db.json
 task.md
 .DS_Store
+.vscode
