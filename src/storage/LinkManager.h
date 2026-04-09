@@ -2,6 +2,7 @@
 #define LINK_MANAGER_H_
 
 #include "../utils/json.hpp"
+#include "IStorage.h"
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -39,7 +40,7 @@ public:
         : StorageException("Code: " + code + " has expired its time") {};
 };
 
-class LinkManager
+class LinkManager : public IStorage
 {
 public:
     /*
@@ -51,25 +52,25 @@ public:
      */
 
     // returns code
-    std::string addUrl(const std::string& original_url) noexcept;
+    std::string addUrl(const std::string& original_url) noexcept override;
 
     // May throw CodeNotFoundException exception
-    json getCodeInfo(const std::string& code);
+    json getCodeInfo(const std::string& code) override;
 
     // HACK: using (json)std::vector to save order between NON-POST requests
-    json getInfo(std::size_t limit, std::size_t offset) noexcept;
+    json getInfo(std::size_t limit, std::size_t offset) noexcept override;
 
     // May throw CodeNotFoundException exception
-    std::string redirect(const std::string& code);
+    std::string redirect(const std::string& code) override;
 
     // Saving data to file
-    void saveToFile() noexcept;
+    void saveToFile() noexcept override;
 
     // Reading data from file
-    void readFromFile() noexcept;
+    void readFromFile() noexcept override;
 
     // clean expired links
-    void cleanExpiredLinks() noexcept;
+    void cleanExpiredLinks() noexcept override;
 
 private:
     struct LinkInfo
@@ -85,10 +86,10 @@ private:
     std::mutex _storageMutex;  // to avoid init in cpp file
 
     // requires mutex lock_guard
-    bool isCodeAvailable(const std::string& code) noexcept;
+    bool isCodeAvailable(const std::string& code) noexcept override;
 
     // requires mutex lock_guard and isCodeAvailable == true
-    bool isCodeExpired(const std::string& code) noexcept;
+    bool isCodeExpired(const std::string& code) noexcept override;
 };
 
 #endif
