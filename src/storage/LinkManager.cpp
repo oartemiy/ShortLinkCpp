@@ -4,39 +4,36 @@
 #include <chrono>
 #include <cstddef>
 #include <ctime>
-#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 #include <utility>
 
 using nlohmann::json;
 
-static std::string to_string(std::chrono::system_clock::time_point chrono_time)
+static std::string to_string(std::time_t time)
 {
-    auto time = std::chrono::system_clock::to_time_t(chrono_time);
     std::tm tm = *std::gmtime(&time);
     std::stringstream ss;
     ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
     return ss.str();
 }
 
-inline std::chrono::system_clock::time_point current_time()
+inline std::time_t current_time()
 {
-    return std::chrono::system_clock::now();
+    return std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 }
 
 // required mutex lock_guard
 inline bool LinkManager::isCodeAvailable(const std::string& code) noexcept
 {
-    return !_storage.contains(code);
+    return !_storage.get_optional<LinkInfo>(code).has_value();
 }
 
 inline bool LinkManager::isCodeExpired(const std::string& code) noexcept
 {
     auto curTime = current_time();
-    return _storage[code].expires_at <= curTime;
+    return _storage.get<LinkInfo>(code).expires_at <= curTime;
 }
 
 std::string LinkManager::addUrl(const std::string& original_url) noexcept
@@ -49,8 +46,8 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
     }
     while(!isCodeAvailable(code));
     auto createdAt = current_time();
-    auto expiresAt = createdAt + std::chrono::minutes(2);
-    _storage.insert({code, {original_url, createdAt, expiresAt, 0ull}});
+    auto expiresAt = createdAt + 120; // 120 == std::chorono::minutes(2)
+    _storage.replace<LinkInfo>({code, original_url, createdAt, expiresAt, 0ull});
     return code;
 }
 
@@ -61,7 +58,7 @@ json LinkManager::getCodeInfo(const std::string& code)
         throw CodeNotFoundException(code);
     if(isCodeExpired(code))
         throw CodeTLLError(code);
-    const LinkInfo& codeInfo = _storage[code];
+    auto codeInfo = _storage.get<LinkInfo>(code);
     json response;
     response["code"] = code;
     response["original_url"] = codeInfo.original_url;
@@ -78,97 +75,57 @@ std::string LinkManager::redirect(const std::string& code)
         throw CodeNotFoundException(code);
     if(isCodeExpired(code))
         throw CodeTLLError(code);
-    _storage[code].clicks++;
-    return _storage[code].original_url;
+    auto codeInfo = _storage.get<LinkInfo>(code);
+    codeInfo.clicks += 1;
+    _storage.update(codeInfo);
+    return codeInfo.original_url;
 }
 
-json LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
+json LinkManager::getInfo(std::size_t limitURL, std::size_t offsetURL) noexcept
 {
     std::lock_guard<std::mutex> lock(_storageMutex);
     json result = json::array();
-    result.get_ptr<json::array_t*>()->reserve(std::min(limit, _storage.size()));
-    auto it = _storage.cbegin();
-    auto curTime = current_time();
-    while(result.size() < limit && it != _storage.cend())
-    {
-        if(offset == 0 && it->second.expires_at > curTime)
-        {
-            json curJSON;
-            curJSON["code"] = it->first;
-            curJSON["original_url"] = it->second.original_url;
-            curJSON["created_at"] = to_string(it->second.created_at);
-            curJSON["expires_at"] = to_string(it->second.expires_at);
-            curJSON["clicks"] = it->second.clicks;
-            result.push_back(std::move(curJSON));
-        }
-        ++it;
+    std::size_t size = _storage.count<LinkInfo>();
+    result.get_ptr<json::array_t*>()->reserve(std::min(limitURL, size));
 
-        if(offset != 0)
-            --offset;
+    using sqlite_orm::c;
+    using sqlite_orm::limit;
+    using sqlite_orm::where;
+    auto curTime = current_time();
+    auto storageVector =
+        _storage.get_all<LinkInfo>(where(c(&LinkInfo::expires_at) > curTime),
+                                   limit(offsetURL, limitURL));
+    for(const auto& curLink: storageVector)
+    {
+
+        json curJSON;
+        curJSON["code"] = curLink.code;
+        curJSON["original_url"] = curLink.original_url;
+        curJSON["created_at"] = to_string(curLink.created_at);
+        curJSON["expires_at"] = to_string(curLink.expires_at);
+        curJSON["clicks"] = curLink.clicks;
+        result.push_back(std::move(curJSON));
     }
     return result;
 }
 
 void LinkManager::saveToFile() noexcept
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
-    std::ofstream file("db.json");
-    if(!file.is_open())
-    {
-        std::cerr << "No db.json file. Stop saving" << std::endl;
-        return;
-    }
-    json currentSaveJSON = json::array();
-    currentSaveJSON.get_ptr<json::array_t*>()->reserve(_storage.size());
-    for(const auto& [code, info]: _storage)
-    {
-        json curJSON;
-        curJSON["code"] = code;
-        curJSON["original_url"] = info.original_url;
-        curJSON["created_at"] =
-            std::chrono::system_clock::to_time_t(info.created_at);
-        curJSON["expires_at"] =
-            std::chrono::system_clock::to_time_t(info.expires_at);
-        curJSON["clicks"] = info.clicks;
-        currentSaveJSON.push_back(curJSON);
-        // std::cout << curJSON.dump(4) << std::endl;
-    }
-    file << currentSaveJSON.dump(4);
-    file.close();
-    std::cout << "Saved LinkManager to db.json" << std::endl;
+    // Yes. it's too easy
+    std::cout << "Saved LinkManager to links.db" << std::endl;
 }
 
 void LinkManager::readFromFile() noexcept
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
-    std::ifstream file("db.json");
-    if(!file.is_open())
-    {
-        std::cerr << "No db.json file. Stop reading" << std::endl;
-        return;
-    }
-    json currentSaveJSON;
-    file >> currentSaveJSON;
-    for(const auto& curJSON: currentSaveJSON)
-    {
-        _storage.insert(
-            {curJSON["code"],
-             {curJSON["original_url"],
-              std::chrono::system_clock::from_time_t(curJSON["created_at"]),
-              std::chrono::system_clock::from_time_t(curJSON["expires_at"]),
-              curJSON["clicks"]}});
-    }
-    file.close();
-    std::cout << "Read db.json data to LinkManager" << std::endl;
+    // Yes. it's too easy
+    std::cout << "Read links.db data to LinkManager" << std::endl;
 }
 
 void LinkManager::cleanExpiredLinks() noexcept
 {
+    using sqlite_orm::c;
+    using sqlite_orm::where;
     std::lock_guard<std::mutex> lock(_storageMutex);
-    std::unordered_map<std::string, LinkInfo> newStorage;
     auto curTime = current_time();
-    for(auto& [code, info]: _storage)
-        if(info.expires_at > curTime)
-            newStorage.insert({code, std::move(info)});
-    _storage = std::move(newStorage);
+    _storage.remove_all<LinkInfo>(where(c(&LinkInfo::expires_at) <= curTime));
 }

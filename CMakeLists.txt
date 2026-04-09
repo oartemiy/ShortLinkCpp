@@ -3,7 +3,7 @@ project(BackendCpp VERSION 0.1.0 LANGUAGES C CXX)
 
 add_compile_options(-pthread)
 
-add_link_options(-sqlite3)
+add_link_options(-lsqlite3)
 
 set(CMAKE_CXX_STANDARD 20)
 
