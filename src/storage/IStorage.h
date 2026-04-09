@@ -30,6 +30,8 @@ public:
     // clean expired links
     virtual void cleanExpiredLinks() noexcept = 0;
 
+    virtual ~IStorage() = default;
+
 private:
     // IStorage data various
 
