@@ -1,29 +1,27 @@
 #include "LinkManager.h"
 #include "../gen_code/gen_code.h"
 #include "../utils/json.hpp"
-#include <chrono>
 #include <cstddef>
 #include <ctime>
 #include <mutex>
 #include <pqxx/pqxx>
 #include <string>
-#include <utility>
 
 using nlohmann::json;
 
-static std::string to_string(std::chrono::system_clock::time_point chrono_time)
-{
-    auto time = std::chrono::system_clock::to_time_t(chrono_time);
-    std::tm tm = *std::gmtime(&time);
-    std::stringstream ss;
-    ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
-    return ss.str();
-}
+// static std::string to_string(std::chrono::system_clock::time_point chrono_time)
+// {
+//     auto time = std::chrono::system_clock::to_time_t(chrono_time);
+//     std::tm tm = *std::gmtime(&time);
+//     std::stringstream ss;
+//     ss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+//     return ss.str();
+// }
 
-inline std::chrono::system_clock::time_point current_time()
-{
-    return std::chrono::system_clock::now();
-}
+// inline std::chrono::system_clock::time_point current_time()
+// {
+//     return std::chrono::system_clock::now();
+// }
 
 // required mutex lock_guard
 inline bool LinkManager::isCodeAvailable(const std::string& code) noexcept

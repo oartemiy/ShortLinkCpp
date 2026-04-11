@@ -5,6 +5,7 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
+#include <cstddef>
 #include <functional>
 #include <thread>
 
@@ -22,11 +23,18 @@ void cleanupLinks(LinkManager& dbRef)
 {
     while(!stopClean.load())
     {
-        std::this_thread::sleep_for(std::chrono::minutes(1));
+        // std::this_thread::sleep_for(std::chrono::minutes(1));
+        for(std::size_t i = 0; i < 60ull; ++i)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            if(stopClean.load())
+                return;
+        }
         if(!stopClean.load())
             db.cleanExpiredLinks();
     }
 }
+
 int main()
 {
     httplib::Server srv;

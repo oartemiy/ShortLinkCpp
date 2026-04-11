@@ -3,9 +3,7 @@
 
 #include "../utils/json.hpp"
 #include "IStorage.h"
-#include <chrono>
 #include <cstddef>
-#include <cstdint>
 #include <mutex>
 #include <pqxx/pqxx>
 #include <stdexcept>
@@ -83,14 +81,14 @@ protected:
     mutable std::mutex _storageMutex;  // to avoid init in cpp file
 
 private:
-    struct LinkInfo
-    {
-        std::string code;
-        std::string original_url;
-        std::chrono::system_clock::time_point created_at;
-        std::chrono::system_clock::time_point expires_at;
-        uint64_t clicks = 0;
-    };
+    // struct LinkInfo
+    // {
+    //     std::string code;
+    //     std::string original_url;
+    //     std::chrono::system_clock::time_point created_at;
+    //     std::chrono::system_clock::time_point expires_at;
+    //     uint64_t clicks = 0;
+    // };
 
     // code -> LinkInfo
     pqxx::connection _cx;

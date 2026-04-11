@@ -16,6 +16,3 @@ src/storage/LinkManager.cpp
 src/handlers/handlers.cpp)
 
 target_link_libraries(BackendCpp PRIVATE libpqxx::pqxx)
-
-
-

@@ -7,6 +7,7 @@
 #include <exception>
 #include <limits>
 #include <string>
+#include <thread>
 #include <unordered_map>
 
 using httplib::Request;
@@ -34,6 +35,9 @@ void postOriginalLinkHandler(const Request& req, Response& res)
         response["code"] = code;
         res.set_content(response.dump(), "application/json");
         res.status = 200;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
     catch(const std::exception& err)
     {
@@ -42,6 +46,9 @@ void postOriginalLinkHandler(const Request& req, Response& res)
         error["details"] = err.what();
         res.set_content(error.dump(), "application/json");
         res.status = 400;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
 }
 
@@ -64,6 +71,9 @@ void getAllStatisticHandler(const Request& req, Response& res)
         response = std::move(db.getInfo(limit, offset));
         res.set_content(response.dump(), "application/json");
         res.status = 200;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
     catch(const std::exception& err)
     {
@@ -71,6 +81,9 @@ void getAllStatisticHandler(const Request& req, Response& res)
         error["error"] = err.what();
         res.set_content(error.dump(), "application/json");
         res.status = 400;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
 }
 
@@ -83,6 +96,9 @@ void getCodeStatisticsHandler(const Request& req, Response& res)
         json response = db.getCodeInfo(code);
         res.set_content(response.dump(), "application/json");
         res.status = 200;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
     catch(const StorageException& err)
     {
@@ -90,6 +106,9 @@ void getCodeStatisticsHandler(const Request& req, Response& res)
         error["error"] = err.what();
         res.set_content(error.dump(), "application/json");
         res.status = 404;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
 }
 
@@ -100,6 +119,9 @@ void redirectHandler(const Request& req, Response& res)
         std::string code = req.path_params.at("code");
         std::string direction = db.redirect(code);
         res.set_redirect(direction, httplib::StatusCode::SeeOther_303);
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
     catch(const StorageException& err)
     {
@@ -107,16 +129,22 @@ void redirectHandler(const Request& req, Response& res)
         error["error"] = err.what();
         res.set_content(error.dump(), "application/json");
         res.status = 404;
+        #ifndef NDEBUG
+            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+        #endif
     }
 }
 
 void signalHandler(int signal)
 {
     std::cout << "Stop server with code: " << signal << std::endl;
-    std::cout << "Wait for 1 minute while cleaning up db..." << std::endl;
+    std::cout << "Wait for 1 second while cleaning up db..." << std::endl;
     stopClean.store(true);
     // if(cleanupThread_ptr)
     //     cleanupThread_ptr->join();
     if(srv_ptr)
         srv_ptr->stop();
+    #ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+    #endif
 }
