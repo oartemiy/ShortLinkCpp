@@ -40,8 +40,6 @@ int main()
     std::thread cleanupThread(cleanupLinks, std::ref(db));
     cleanupThread_ptr = &cleanupThread;
 
-    db.readFromFile();
-
     srv.Post("/shorten", postOriginalLinkHandler);
 
     srv.Get("/stats", getAllStatisticHandler);
@@ -57,7 +55,6 @@ int main()
     // signal handler can join thread
     if(cleanupThread.joinable())
         cleanupThread.join();
-    db.saveToFile();
 
     return 0;
 }

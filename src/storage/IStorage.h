@@ -21,11 +21,11 @@ public:
     // May throw CodeNotFoundException exception
     virtual std::string redirect(const std::string& code) = 0;
 
-    // Saving data to file
-    virtual void saveToFile() noexcept = 0;
+    // // Saving data to file
+    // virtual void saveToFile() const noexcept = 0;
 
-    // Reading data from file
-    virtual void readFromFile() noexcept = 0;
+    // // Reading data from file
+    // virtual void readFromFile() const noexcept = 0;
 
     // clean expired links
     virtual void cleanExpiredLinks() noexcept = 0;

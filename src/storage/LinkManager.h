@@ -7,9 +7,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
+#include <pqxx/pqxx>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
 
 using nlohmann::json;
 
@@ -40,7 +40,7 @@ public:
         : StorageException("Code: " + code + " has expired its time") {};
 };
 
-class LinkManager : public IStorage
+class LinkManager: public IStorage
 {
 public:
     /*
@@ -50,6 +50,19 @@ public:
      * TODO: implement json returning, which will elide copping from stl
      * containers
      */
+
+    LinkManager(): _cx("dbname=links user=oartemiy host=localhost")
+    {
+        pqxx::work create(_cx);
+        create.exec(R"(CREATE TABLE IF NOT EXISTS links (
+                code TEXT PRIMARY KEY,
+                original_url TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '2 minutes',
+                clicks INTEGER DEFAULT 0
+            ))");
+        create.commit();
+    }
 
     // returns code
     std::string addUrl(const std::string& original_url) noexcept override;
@@ -63,18 +76,16 @@ public:
     // May throw CodeNotFoundException exception
     std::string redirect(const std::string& code) override;
 
-    // Saving data to file
-    void saveToFile() noexcept override;
-
-    // Reading data from file
-    void readFromFile() noexcept override;
-
     // clean expired links
     void cleanExpiredLinks() noexcept override;
+
+protected:
+    mutable std::mutex _storageMutex;  // to avoid init in cpp file
 
 private:
     struct LinkInfo
     {
+        std::string code;
         std::string original_url;
         std::chrono::system_clock::time_point created_at;
         std::chrono::system_clock::time_point expires_at;
@@ -82,8 +93,7 @@ private:
     };
 
     // code -> LinkInfo
-    std::unordered_map<std::string, LinkInfo> _storage;
-    std::mutex _storageMutex;  // to avoid init in cpp file
+    pqxx::connection _cx;
 
     // requires mutex lock_guard
     bool isCodeAvailable(const std::string& code) noexcept override;

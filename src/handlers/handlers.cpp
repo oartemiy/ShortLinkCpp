@@ -2,6 +2,7 @@
 #include "../server/httplib.h"
 #include "../utils/json.hpp"
 #include <cstddef>
+#include <cstdint>
 #include <ctime>
 #include <exception>
 #include <limits>
@@ -51,13 +52,14 @@ void getAllStatisticHandler(const Request& req, Response& res)
 
     try
     {
-        // size_t ~ ull
+        // TODO: implement postgress full support
+        // size_t ~ int
         // TODO: remove KOLHOZ!!!
         std::size_t limit = req.get_param_value("limit") == ""
-                                ? std::numeric_limits<std::size_t>::max()
+                                ? std::numeric_limits<std::int32_t>::max()
                                 : std::stoull(req.get_param_value("limit"));
         std::size_t offset = req.get_param_value("offset") == ""
-                                 ? 0ull
+                                 ? 0
                                  : std::stoull(req.get_param_value("offset"));
         response = std::move(db.getInfo(limit, offset));
         res.set_content(response.dump(), "application/json");

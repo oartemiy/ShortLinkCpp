@@ -2,5 +2,6 @@ build/
 .cache/
 db.json
 task.md
+links.db
 .DS_Store
 .vscode
