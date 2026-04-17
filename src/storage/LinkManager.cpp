@@ -5,6 +5,7 @@
 #include <ctime>
 #include <mutex>
 #include <pqxx/pqxx>
+#include <shared_mutex>
 #include <string>
 
 using nlohmann::json;
@@ -47,7 +48,7 @@ inline bool LinkManager::isCodeExpired(const std::string& code) noexcept
 
 std::string LinkManager::addUrl(const std::string& original_url) noexcept
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::unique_lock<std::shared_mutex> lock(_storageMutex);
     std::string code;
     do
     {
@@ -64,7 +65,7 @@ std::string LinkManager::addUrl(const std::string& original_url) noexcept
 
 json LinkManager::getCodeInfo(const std::string& code)
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::shared_lock<std::shared_mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
     if(isCodeExpired(code))
@@ -85,7 +86,7 @@ json LinkManager::getCodeInfo(const std::string& code)
 
 json LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::shared_lock<std::shared_mutex> lock(_storageMutex);
 
     pqxx::work select(_cx);
     auto res = select.exec(
@@ -100,7 +101,7 @@ json LinkManager::getInfo(std::size_t limit, std::size_t offset) noexcept
 
 std::string LinkManager::redirect(const std::string& code)
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::unique_lock<std::shared_mutex> lock(_storageMutex);
     if(isCodeAvailable(code))
         throw CodeNotFoundException(code);
     if(isCodeExpired(code))
@@ -117,7 +118,7 @@ std::string LinkManager::redirect(const std::string& code)
 
 void LinkManager::cleanExpiredLinks() noexcept
 {
-    std::lock_guard<std::mutex> lock(_storageMutex);
+    std::unique_lock<std::shared_mutex> lock(_storageMutex);
     pqxx::work clean(_cx);
     auto res = clean.exec("DELETE FROM links WHERE expires_at <= NOW()");
     clean.commit();

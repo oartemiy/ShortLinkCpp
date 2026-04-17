@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <mutex>
 #include <pqxx/pqxx>
+#include <shared_mutex>
 #include <stdexcept>
 #include <string>
 
@@ -78,7 +79,8 @@ public:
     void cleanExpiredLinks() noexcept override;
 
 protected:
-    mutable std::mutex _storageMutex;  // to avoid init in cpp file
+    mutable std::shared_mutex _storageMutex;  // to avoid init in cpp fileƒ
+                                              // std::mutex _storageMutex;
 
 private:
     // struct LinkInfo
