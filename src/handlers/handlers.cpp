@@ -1,150 +1,164 @@
 #include "handlers.h"
-#include "../server/httplib.h"
-#include "../utils/json.hpp"
 #include <cstddef>
-#include <cstdint>
 #include <ctime>
+#include <drogon/HttpAppFramework.h>
+#include <drogon/HttpResponse.h>
+#include <drogon/HttpTypes.h>
 #include <exception>
-#include <limits>
+#include <json/value.h>
 #include <string>
 #include <thread>
-#include <unordered_map>
 
-using httplib::Request;
-using httplib::Response;
-
-using nlohmann::json;
-
-void postOriginalLinkHandler(const Request& req, Response& res)
+Task<HttpResponsePtr> postOriginalLinkHandler(HttpRequestPtr req)
 {
     try
     {
-        json request = json::parse(req.body);
-        std::string original_url = request.at("url");
+        json requestJSON = json::parse(req->getBody());
+        std::string original_url = requestJSON.at("url");
         if(!original_url.starts_with("http://") &&
            !original_url.starts_with("https://"))
         {
             json error;
             error["error"] = "url: " + original_url + " is not valid!";
-            res.set_content(error.dump(), "application/json");
-            return;
+            auto res = drogon::HttpResponse::newHttpResponse();
+            res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+            req->setBody(error.dump());
+            res->setStatusCode(drogon::k400BadRequest);
+            co_return res;
         }
-        std::string code = db.addUrl(original_url);
+        std::string code = co_await storage.addUrl(original_url);
         json response;
         response["short_url"] = "http://localhost:8080/" + code;
         response["code"] = code;
-        res.set_content(response.dump(), "application/json");
-        res.status = 200;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(response.dump());
+        res->setStatusCode(drogon::k200OK);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
     catch(const std::exception& err)
     {
         json error;
         error["error"] = "Invalid JSON";
         error["details"] = err.what();
-        res.set_content(error.dump(), "application/json");
-        res.status = 400;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(error.dump());
+        res->setStatusCode(drogon::k400BadRequest);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
 }
 
 // TODO: implement json
-void getAllStatisticHandler(const Request& req, Response& res)
+Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req)
 {
-    json response;
-
     try
     {
         // TODO: implement postgress full support
         // size_t ~ int
-        // TODO: remove KOLHOZ!!!
-        std::size_t limit = req.get_param_value("limit") == ""
-                                ? std::numeric_limits<std::int32_t>::max()
-                                : std::stoull(req.get_param_value("limit"));
-        std::size_t offset = req.get_param_value("offset") == ""
-                                 ? 0
-                                 : std::stoull(req.get_param_value("offset"));
-        response = std::move(db.getInfo(limit, offset));
-        res.set_content(response.dump(), "application/json");
-        res.status = 200;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        // +TODO: remove KOLHOZ!!!
+        std::size_t limit = 100;
+        std::size_t offset = 0;
+        if(req->parameters().contains("limit"))
+            std::size_t limit = std::stoull(req->getParameter("limit"));
+        if(req->parameters().contains("offset"))
+            std::size_t offset = std::stoull(req->getParameter("offset"));
+        json response = std::move(co_await storage.getInfo(limit, offset));
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(response.dump());
+        res->setStatusCode(drogon::k200OK);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
     catch(const std::exception& err)
     {
         json error;
         error["error"] = err.what();
-        res.set_content(error.dump(), "application/json");
-        res.status = 400;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(error.dump());
+        res->setStatusCode(drogon::k400BadRequest);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
 }
 
 // TODO: impl json
-void getCodeStatisticsHandler(const Request& req, Response& res)
+Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req,
+                                               std::string code)
 {
     try
     {
-        std::string code = req.path_params.at("code");
-        json response = db.getCodeInfo(code);
-        res.set_content(response.dump(), "application/json");
-        res.status = 200;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        json response = co_await storage.getCodeInfo(code);
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(response.dump());
+        res->setStatusCode(drogon::k200OK);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
     catch(const StorageException& err)
     {
         json error;
         error["error"] = err.what();
-        res.set_content(error.dump(), "application/json");
-        res.status = 404;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(error.dump());
+        res->setStatusCode(drogon::k400BadRequest);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
 }
 
-void redirectHandler(const Request& req, Response& res)
+Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req, std::string code)
 {
     try
     {
-        std::string code = req.path_params.at("code");
-        std::string direction = db.redirect(code);
-        res.set_redirect(direction, httplib::StatusCode::SeeOther_303);
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        std::string direction = co_await storage.redirect(code);
+        auto res = drogon::HttpResponse::newRedirectionResponse(direction);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
     catch(const StorageException& err)
     {
         json error;
         error["error"] = err.what();
-        res.set_content(error.dump(), "application/json");
-        res.status = 404;
-        #ifndef NDEBUG
-            std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-        #endif
+        auto res = drogon::HttpResponse::newHttpResponse();
+        res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
+        res->setBody(error.dump());
+        res->setStatusCode(drogon::k400BadRequest);
+#ifndef NDEBUG
+        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
+        co_return res;
     }
 }
 
 void signalHandler(int signal)
 {
     std::cout << "Stop server with code: " << signal << std::endl;
-    std::cout << "Wait for 1 second while cleaning up db..." << std::endl;
+    std::cout << "Wait for 1 second while stopping cleaning up db..."
+              << std::endl;
     stopClean.store(true);
-    // if(cleanupThread_ptr)
-    //     cleanupThread_ptr->join();
-    if(srv_ptr)
-        srv_ptr->stop();
-    #ifndef NDEBUG
-        std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
-    #endif
+    app().getLoop()->queueInLoop([] { app().quit(); });
+#ifndef NDEBUG
+    std::cout << "Done by: " << std::this_thread::get_id() << std::endl;
+#endif
 }

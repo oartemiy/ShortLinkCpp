@@ -1,68 +1,56 @@
 #include "handlers/handlers.h"
-#include "server/httplib.h"
 #include "storage/LinkManager.h"
-#include "utils/json.hpp"
 #include <atomic>
 #include <chrono>
 #include <csignal>
 #include <cstddef>
-#include <functional>
-#include <thread>
+#include <drogon/HttpAppFramework.h>
+#include <drogon/HttpTypes.h>
+#include <drogon/drogon.h>
+#include <drogon/utils/coroutine.h>
+#include <nlohmann/json.hpp>
 
-using httplib::Request;
-using httplib::Response;
+using drogon::app;
+using drogon::Get;
+using drogon::Post;
 
 using nlohmann::json;
 
-LinkManager db;
-httplib::Server* srv_ptr = nullptr;
-std::thread* cleanupThread_ptr = nullptr;
+LinkManager storage;
 std::atomic<bool> stopClean{false};
 
-void cleanupLinks(LinkManager& dbRef)
+Task<void> cleanupLinks()
 {
     while(!stopClean.load())
     {
-        // std::this_thread::sleep_for(std::chrono::minutes(1));
-        for(std::size_t i = 0; i < 60ull; ++i)
-        {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            if(stopClean.load())
-                return;
-        }
+        co_await drogon::sleepCoro(app().getLoop(), std::chrono::minutes(1));
         if(!stopClean.load())
-            db.cleanExpiredLinks();
+            co_await storage.cleanExpiredLinks();
     }
 }
 
 int main()
 {
-    httplib::Server srv;
-    srv.new_task_queue = [] { return new httplib::ThreadPool(4); };
-    srv_ptr = &srv;
 
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // NOTE: tested all is working
-    std::thread cleanupThread(cleanupLinks, std::ref(db));
-    cleanupThread_ptr = &cleanupThread;
+    app().loadConfigFile("config.json");
+    app().addListener("localhost", 8080);
 
-    srv.Post("/shorten", postOriginalLinkHandler);
+    app().registerHandler("/shorten", postOriginalLinkHandler, {Post});
 
-    srv.Get("/stats", getAllStatisticHandler);
+    app().registerHandler("/stats", getAllStatisticHandler, {Get});
 
-    srv.Get("/stats/:code", getCodeStatisticsHandler);
+    app().registerHandler("/stats/{code}", getCodeStatisticsHandler, {Get});
 
-    srv.Get("/:code", redirectHandler);
+    app().registerHandler("/{code}", redirectHandler, {Get});
+
+    drogon::async_run(cleanupLinks());
 
     std::cout << "Server is running on localhost:8080" << std::endl;
-    srv.listen("localhost", 8080);
 
-    stopClean.store(true);
-    // signal handler can join thread
-    if(cleanupThread.joinable())
-        cleanupThread.join();
+    app().run();
 
     return 0;
 }

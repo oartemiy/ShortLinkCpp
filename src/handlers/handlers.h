@@ -1,34 +1,32 @@
 #ifndef HANDLERS_H_
 #define HANDLERS_H_
-#include "../server/httplib.h"
+
+#include <drogon/HttpRequest.h>
+#include <drogon/HttpResponse.h>
+#include <drogon/drogon.h>
 #include "../storage/LinkManager.h"
-#include "../utils/json.hpp"
+#include <drogon/utils/coroutine.h>
+#include <nlohmann/json.hpp>
+#include <string>
+#include <atomic>
 
-using httplib::Request;
-using httplib::Response;
 using nlohmann::json;
+using drogon::HttpRequestPtr;
+using drogon::Task;
+using drogon::app;
+using drogon::HttpResponsePtr;
 
-extern LinkManager db;
-extern httplib::Server* srv_ptr;
-// extern std::thread* cleanupThread_ptr;
+extern LinkManager storage;
 extern std::atomic<bool> stopClean;
 
-// class UrlError: public std::runtime_error
-// {
-//     explicit UrlError(const std::string& err)
-//         : std::runtime_error("Url: " + err + " is invalid!")
-//     {
-//     }
-// };
+Task<HttpResponsePtr> postOriginalLinkHandler(HttpRequestPtr req);
 
-void postOriginalLinkHandler(const Request& req, Response& res);
+Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req);
 
-void getAllStatisticHandler(const Request& req, Response& res);
-
-void getCodeStatisticsHandler(const Request& req, Response& res);
+Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req, std::string code);
 
 void signalHandler(int signal);
 
-void redirectHandler(const Request& req, Response& res);
+Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req, std::string code);
 
 #endif
