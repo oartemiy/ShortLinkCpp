@@ -23,10 +23,10 @@ Task<HttpResponsePtr> postOriginalLinkHandler(HttpRequestPtr req);
 
 Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req);
 
-Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req, std::string code);
+Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req);
 
 void signalHandler(int signal);
 
-Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req, std::string code);
+Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req);
 
 #endif

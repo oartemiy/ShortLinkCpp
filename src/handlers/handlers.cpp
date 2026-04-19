@@ -95,9 +95,9 @@ Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req)
 }
 
 // TODO: impl json
-Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req,
-                                               std::string code)
+Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req)
 {
+    std::string code = req->getParameter("code");
     try
     {
         json response = co_await storage.getCodeInfo(code);
@@ -125,8 +125,9 @@ Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req,
     }
 }
 
-Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req, std::string code)
+Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req)
 {
+    std::string code = req->getParameter("code");
     try
     {
         std::string direction = co_await storage.redirect(code);

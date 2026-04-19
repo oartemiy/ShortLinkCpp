@@ -5,3 +5,5 @@ task.md
 links.db
 .DS_Store
 .vscode
+vcpkg_installed
+uploads
