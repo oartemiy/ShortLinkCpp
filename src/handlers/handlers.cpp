@@ -5,11 +5,12 @@
 #include <drogon/HttpResponse.h>
 #include <drogon/HttpTypes.h>
 #include <exception>
+#include <iterator>
 #include <json/value.h>
 #include <string>
 #include <thread>
 
-Task<HttpResponsePtr> postOriginalLinkHandler(HttpRequestPtr req)
+Task<HttpResponsePtr> PostOriginalLinkHandler::operator()(HttpRequestPtr req)
 {
     try
     {
@@ -55,20 +56,20 @@ Task<HttpResponsePtr> postOriginalLinkHandler(HttpRequestPtr req)
     }
 }
 
-// TODO: implement json
-Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req)
+Task<HttpResponsePtr> GetAllStatisticHandler::operator()(HttpRequestPtr req)
 {
     try
     {
         // TODO: implement postgress full support
         // size_t ~ int
-        // +TODO: remove KOLHOZ!!!
         std::size_t limit = 100;
+        if (auto opt = req->getOptionalParameter<std::size_t>("limit")) {
+            limit = *opt;
+        }
         std::size_t offset = 0;
-        if(req->parameters().contains("limit"))
-            std::size_t limit = std::stoull(req->getParameter("limit"));
-        if(req->parameters().contains("offset"))
-            std::size_t offset = std::stoull(req->getParameter("offset"));
+        if (auto opt = req->getOptionalParameter<std::size_t>("offset")) {
+            offset = *opt;
+        }
         json response = std::move(co_await storage.getInfo(limit, offset));
         auto res = drogon::HttpResponse::newHttpResponse();
         res->setContentTypeCode(drogon::CT_APPLICATION_JSON);
@@ -94,10 +95,9 @@ Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req)
     }
 }
 
-// TODO: impl json
-Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req)
+Task<HttpResponsePtr> GetCodeStatisticsHandler::operator()(HttpRequestPtr req, std::string code)
 {
-    std::string code = req->getParameter("code");
+    // std::string code = req->getParameter("code");
     try
     {
         json response = co_await storage.getCodeInfo(code);
@@ -125,9 +125,12 @@ Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req)
     }
 }
 
-Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req)
+Task<HttpResponsePtr> RedirectHandler::operator()(HttpRequestPtr req, std::string code)
 {
-    std::string code = req->getParameter("code");
+    // std::string code = req->getParameter("code");
+#ifndef NDEBUG
+    std::cout << "Param: " << code << std::endl;
+#endif
     try
     {
         std::string direction = co_await storage.redirect(code);

@@ -1,32 +1,50 @@
 #ifndef HANDLERS_H_
 #define HANDLERS_H_
 
+#include "../storage/LinkManager.h"
+#include <atomic>
+#include <drogon/HttpAppFramework.h>
 #include <drogon/HttpRequest.h>
 #include <drogon/HttpResponse.h>
 #include <drogon/drogon.h>
-#include "../storage/LinkManager.h"
 #include <drogon/utils/coroutine.h>
 #include <nlohmann/json.hpp>
 #include <string>
-#include <atomic>
 
-using nlohmann::json;
-using drogon::HttpRequestPtr;
-using drogon::Task;
 using drogon::app;
+using drogon::HttpRequestPtr;
 using drogon::HttpResponsePtr;
+using drogon::Task;
+using nlohmann::json;
 
 extern LinkManager storage;
 extern std::atomic<bool> stopClean;
 
-Task<HttpResponsePtr> postOriginalLinkHandler(HttpRequestPtr req);
+class PostOriginalLinkHandler
+{
+public:
+    Task<HttpResponsePtr> operator()(HttpRequestPtr req);
+};
 
-Task<HttpResponsePtr> getAllStatisticHandler(HttpRequestPtr req);
+class GetAllStatisticHandler
+{
+public:
+    Task<HttpResponsePtr> operator()(HttpRequestPtr req);
+};
 
-Task<HttpResponsePtr> getCodeStatisticsHandler(HttpRequestPtr req);
+class GetCodeStatisticsHandler
+{
+public:
+    Task<HttpResponsePtr> operator()(HttpRequestPtr req, std::string code);
+};
+
+class RedirectHandler
+{
+public:
+    Task<HttpResponsePtr> operator()(HttpRequestPtr req, std::string code);
+};
 
 void signalHandler(int signal);
 
-Task<HttpResponsePtr> redirectHandler(HttpRequestPtr req);
 
 #endif
