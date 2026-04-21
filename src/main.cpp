@@ -44,7 +44,6 @@ int main()
 
     app().addDbClient(drogon::orm::PostgresConfig{
         "localhost", 5432, "links", "oartemiy", "", 4, "default", true});
-    // app().createDbClient("postgresql", "localhost", 5432, "links", "oartemiy", "");
 
     app().registerHandler("/shorten", PostOriginalLinkHandler{}, {Post});
 
