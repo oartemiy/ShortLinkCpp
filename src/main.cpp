@@ -40,12 +40,11 @@ int main()
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
-    // app().loadConfigFile("/Users/oartemiy/code/BackendCpp/config.json");
     app().addListener("localhost", 8080);
 
-    // 2. СОЗДАЁМ клиента ДО старта фреймворка
-    app().createDbClient("postgresql", "localhost", 5432, "links", "oartemiy",
-                         "");
+    app().addDbClient(drogon::orm::PostgresConfig{
+        "localhost", 5432, "links", "oartemiy", "", 4, "default", true});
+    // app().createDbClient("postgresql", "localhost", 5432, "links", "oartemiy", "");
 
     app().registerHandler("/shorten", PostOriginalLinkHandler{}, {Post});
 

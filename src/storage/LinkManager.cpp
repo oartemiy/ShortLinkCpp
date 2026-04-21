@@ -17,8 +17,9 @@ using nlohmann::json;
 // required mutex lock_guard
 Task<bool> LinkManager::isCodeAvailable(const std::string& code)
 {
-    auto db = app().getDbClient();
-    auto res = co_await db->execSqlCoro("SELECT code FROM links WHERE code = $1", code);
+    auto db = app().getFastDbClient("default");
+    auto res = co_await db->execSqlCoro(
+        "SELECT code FROM links WHERE code = $1", code);
     co_return res.empty();
 }
 
@@ -26,7 +27,7 @@ Task<bool> LinkManager::isCodeAvailable(const std::string& code)
 // required mutex lock_guard
 Task<bool> LinkManager::isCodeExpired(const std::string& code)
 {
-    auto db = app().getDbClient();
+    auto db = app().getFastDbClient("default");
     auto res = co_await db->execSqlCoro(
         "SELECT code FROM links WHERE code = $1 AND expires_at <= NOW()", code);
     co_return !res.empty();
@@ -42,7 +43,7 @@ Task<std::string> LinkManager::addUrl(const std::string& original_url)
     }
     while(!co_await isCodeAvailable(
         code));  // TODO: improve problem big ammount of with sql queries
-    auto db = app().getDbClient();
+    auto db = app().getFastDbClient("default");
     auto res = co_await db->execSqlCoro(
         "INSERT INTO links (code, original_url) VALUES ($1, $2)", code,
         original_url);
@@ -57,7 +58,7 @@ Task<json> LinkManager::getCodeInfo(const std::string& code)
     if(co_await isCodeExpired(code))
         throw CodeTLLError(code);
 
-    auto db = app().getDbClient();
+    auto db = app().getFastDbClient("default");
     auto res = co_await db->execSqlCoro(
         "SELECT COALESCE(row_to_json(t), '{}'::json) FROM "
         "(SELECT code, original_url, "
@@ -73,7 +74,7 @@ Task<json> LinkManager::getInfo(std::size_t limit, std::size_t offset)
 {
     std::shared_lock<std::shared_mutex> lock(_storageMutex);
 
-    auto db = app().getDbClient();
+    auto db = app().getFastDbClient("default");
     auto res = co_await db->execSqlCoro(
         "SELECT COALESCE(json_agg(t), '[]'::json) FROM (SELECT code, "
         "original_url, created_at, "
@@ -92,7 +93,7 @@ Task<std::string> LinkManager::redirect(const std::string& code)
     if(co_await isCodeExpired(code))
         throw CodeTLLError(code);
 
-    auto db = app().getDbClient();
+    auto db = app().getFastDbClient("default");
     auto res = co_await db->execSqlCoro(
         "UPDATE links SET clicks = clicks + 1 WHERE code = $1 "
         "RETURNING original_url",
@@ -104,7 +105,8 @@ Task<std::string> LinkManager::redirect(const std::string& code)
 Task<void> LinkManager::cleanExpiredLinks()
 {
     std::unique_lock<std::shared_mutex> lock(_storageMutex);
-    auto db = app().getDbClient();
-    auto res = co_await db->execSqlCoro("DELETE FROM links WHERE expires_at <= NOW()");
+    auto db = app().getFastDbClient("default");
+    auto res =
+        co_await db->execSqlCoro("DELETE FROM links WHERE expires_at <= NOW()");
     co_return;
 }

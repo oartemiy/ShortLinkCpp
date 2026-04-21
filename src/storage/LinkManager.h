@@ -69,7 +69,7 @@ public:
     Task<void> cleanExpiredLinks();
 
 protected:
-    mutable std::shared_mutex _storageMutex;  // to avoid init in cpp fileƒ
+    mutable std::shared_mutex _storageMutex;  // to avoid init in cpp file
                                               // std::mutex _storageMutex;
 
 private:
