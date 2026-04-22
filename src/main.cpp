@@ -25,18 +25,24 @@ using nlohmann::json;
 LinkManager storage;
 std::atomic<bool> stopClean{false};
 
-Task<void> cleanupLinks()
+class CleanupLinks
 {
-    while(!stopClean.load())
+public:
+    Task<void> operator()()
     {
-        co_await drogon::sleepCoro(app().getLoop(), std::chrono::minutes(1));
-        if(!stopClean.load())
-            co_await storage.cleanExpiredLinks();
+        while(!stopClean.load())
+        {
+            co_await drogon::sleepCoro(app().getLoop(),
+                                       std::chrono::minutes(1));
+            if(!stopClean.load())
+                co_await storage.cleanExpiredLinks();
+        }
     }
-}
+};
 
 int main()
 {
+    // TODO: implement/improve signals calling
     std::signal(SIGINT, signalHandler);
     std::signal(SIGTERM, signalHandler);
 
@@ -53,17 +59,7 @@ int main()
 
     app().registerHandler("/{code}", RedirectHandler{}, {Get});
 
-    async_run(
-        []() -> Task<void>
-        {
-            while(!stopClean.load())
-            {
-                co_await drogon::sleepCoro(app().getLoop(),
-                                           std::chrono::minutes(1));
-                if(!stopClean.load())
-                    co_await storage.cleanExpiredLinks();
-            }
-        });
+    async_run(CleanupLinks{});
 
     std::cout << "Server is running on localhost:8080" << std::endl;
 

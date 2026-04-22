@@ -7,3 +7,5 @@ links.db
 .vscode
 vcpkg_installed
 uploads
+cmake-build-debug
+build-debug

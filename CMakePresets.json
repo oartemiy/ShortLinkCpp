@@ -1,0 +1,28 @@
+{
+  "version": 10,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_STANDARD": "20",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_COLOR_DIAGNOSTICS": "ON",
+        "CMAKE_TOOLCHAIN_FILE": "/Users/oartemiy/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "arm64-osx"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "jobs": 10
+    }
+  ]
+}
